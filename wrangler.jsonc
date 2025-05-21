@@ -7,6 +7,7 @@
 	"name": "blogging-counter-auth-server",
 	"main": "src/index.js",
 	"compatibility_date": "2025-05-21",
+	"compatibility_flags": ["nodejs_compat"],
 	"observability": {
 		"enabled": true
 	}
