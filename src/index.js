@@ -22,6 +22,8 @@ const subjects = createSubjects({
 	}),
 });
 
+console.log(subjects);
+
 const storage = MemoryStorage();
 
 async function getOrCreateUser(email) {
@@ -32,25 +34,11 @@ async function getOrCreateUser(email) {
 		};
 		users.set(email, user);
 	}
-	return user;
+	return user.id;
 }
 
 export default {
 	fetch(request, env, ctx) {
-		const url = new URL(request.url);
-		if (url.pathname === '/') {
-			url.searchParams.set('redirect_uri', url.origin + '/callback');
-			url.searchParams.set('client_id', 'your-client-id');
-			url.searchParams.set('response_type', 'code');
-			url.pathname = '/authorize';
-			return Response.redirect(url.toString());
-		} else if (url.pathname === '/callback') {
-			return Response.json({
-				message: 'OAuth flow complete!',
-				params: Object.fromEntries(url.searchParams.entries()),
-			});
-		}
-
 		return issuer({
 			storage,
 			subjects,
@@ -68,8 +56,8 @@ export default {
 					throw new Error('Invalid provider');
 				}
 				console.log(value.email);
-				const userID = await getOrCreateUser(value.email);
-				return ctx.subject('user', { userID });
+				const id = await getOrCreateUser(value.email);
+				return ctx.subject('user', { id });
 			},
 		}).fetch(request, env, ctx);
 	},
