@@ -14,6 +14,13 @@ const subjects = createSubjects({
 
 const storage = MemoryStorage();
 
+// Allowed redirect URIs for the cloudflare-api client
+const allowedRedirectURIs = [
+	'https://auth.bloggingcounter.pages.dev/auth/callback',
+	'https://blogging-counter-auth-server.jett-p-baker.workers.dev/auth/callback',
+	'http://localhost:8787/auth/callback',
+];
+
 async function getOrCreateUser(email) {
 	let user = users.get(email);
 	if (!user) {
@@ -37,23 +44,23 @@ export default {
 					scopes: ['openid', 'email', 'profile'],
 				}),
 			},
+			// Permit our Pages client to use the callback URI
+			allow: async ({ clientID, redirectURI }) => {
+				// Only allow the registered client id
+				if (clientID !== 'cloudflare-api') return false;
+				return allowedRedirectURIs.includes(redirectURI);
+			},
 			success: async (ctx, value) => {
-				console.log('SUCCESS CALLBACK TRIGGERED!');
-				console.log('Email:', value.id.email);
-
 				if (value.provider !== 'google') {
 					throw new Error('Invalid provider');
 				}
 
 				const email = value.id.email;
-				console.log('Creating user for email:', email);
 
 				const id = await getOrCreateUser(email);
-				console.log('Generated user ID:', id);
 
 				try {
 					const result = await ctx.subject('user', { id });
-					console.log('Subject created successfully:', result);
 					return result;
 				} catch (error) {
 					console.error('Error creating subject:', error);
