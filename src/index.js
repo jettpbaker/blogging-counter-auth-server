@@ -1,16 +1,6 @@
-/**
- * Welcome to Cloudflare Workers! This is your first worker.
- *
- * - Run `npm run dev` in your terminal to start a development server
- * - Open a browser tab at http://localhost:8787/ to see your worker in action
- * - Run `npm run deploy` to publish your worker
- *
- * Learn more at https://developers.cloudflare.com/workers/
- */
 import { issuer } from '@openauthjs/openauth';
 import { MemoryStorage } from '@openauthjs/openauth/storage/memory';
-import { PasswordProvider } from '@openauthjs/openauth/provider/password';
-import { PasswordUI } from '@openauthjs/openauth/ui/password';
+import { GoogleOidcProvider } from '@openauthjs/openauth/provider/google';
 import { createSubjects } from '@openauthjs/openauth/subject';
 import { object, string } from 'valibot';
 
@@ -21,8 +11,6 @@ const subjects = createSubjects({
 		id: string(),
 	}),
 });
-
-console.log(subjects);
 
 const storage = MemoryStorage();
 
@@ -43,21 +31,34 @@ export default {
 			storage,
 			subjects,
 			providers: {
-				password: PasswordProvider(
-					PasswordUI({
-						sendCode: async (email, code) => {
-							console.log(`Sending code ${code} to ${email}`);
-						},
-					})
-				),
+				google: GoogleOidcProvider({
+					clientID: env.GOOGLE_CLIENT_ID,
+					clientSecret: env.GOOGLE_CLIENT_SECRET,
+					scopes: ['openid', 'email', 'profile'],
+				}),
 			},
 			success: async (ctx, value) => {
-				if (value.provider !== 'password') {
+				console.log('SUCCESS CALLBACK TRIGGERED!');
+				console.log('Email:', value.id.email);
+
+				if (value.provider !== 'google') {
 					throw new Error('Invalid provider');
 				}
-				console.log(value.email);
-				const id = await getOrCreateUser(value.email);
-				return ctx.subject('user', { id });
+
+				const email = value.id.email;
+				console.log('Creating user for email:', email);
+
+				const id = await getOrCreateUser(email);
+				console.log('Generated user ID:', id);
+
+				try {
+					const result = await ctx.subject('user', { id });
+					console.log('Subject created successfully:', result);
+					return result;
+				} catch (error) {
+					console.error('Error creating subject:', error);
+					throw error;
+				}
 			},
 		}).fetch(request, env, ctx);
 	},
